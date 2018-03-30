@@ -19,7 +19,7 @@ std::string PostfixCalculator::getPostfixNotation()
     for (auto token : m_postfixNotation)
     {
         postfix += token;
-      //  postfix += " ";
+        postfix += " ";
     }
     return postfix;
 }
@@ -142,7 +142,7 @@ void PostfixCalculator::infixToPostfix()
            while (
                   (!operation_stack.empty()) &&
                   (operation_stack.top() != '(') &&
-                  (getPrioritet(m_expression[i]) < getPrioritet(operation_stack.top()))
+                  (getPrioritet(m_expression[i]) <= getPrioritet(operation_stack.top()))
                  )
            {
                // convert char to string and then push_back to the link list
