@@ -1,13 +1,13 @@
 #include "CodeGeneration.h"
 
 
+
 typedef std::pair<std::string,VarRegWrap> pair_type;
 
 
-CodeGeneration::CodeGeneration(std::string s_OutfileName,std::string s_InFileName)
+CodeGeneration::CodeGeneration(std::vector<std::vector<std::string> > const &Matrix, std::string s_OutfileName)
 {
-    m_inputFile.open(s_InFileName.c_str(),std::ios::in); 
-    assert(m_inputFile.is_open()); 
+    m_ExpressionMatrix=Matrix;
     
     m_outputFile.open(s_OutfileName.c_str(),std::ios::out);
     assert(m_outputFile.is_open());
@@ -15,9 +15,8 @@ CodeGeneration::CodeGeneration(std::string s_OutfileName,std::string s_InFileNam
 CodeGeneration::~CodeGeneration()
 {
     m_outputFile.close();
-    m_inputFile.close();
 }
-void CodeGeneration::ReadFromFile()
+/*void CodeGeneration::ReadFromFile()
 {   
     // = operatori tex@ fixelu hamar
     int operatorIndex=0;
@@ -43,6 +42,7 @@ void CodeGeneration::ReadFromFile()
             {
                 if(int(str_postfix[i])<=int('9') && int(str_postfix[i])>=int('0'))
                 {
+
                     m_outputFile<<mem_obj.regAssign(std::string(1,str_postfix[i]))<<"\n";
                 }
                 else
@@ -86,17 +86,18 @@ void CodeGeneration::ReadFromFile()
 
    
 }
+*/
 void CodeGeneration::DataSegment()
 {  
-     m_outputFile.seekg(std::ios::beg);
-    m_outputFile<<".Data\n";
-    std::map<std::string,VarRegWrap>::iterator it=MemoryAddress.begin();
-    while(it!=MemoryAddress.end())
+    m_outputFile.seekg(std::ios::beg);
+    m_outputFile<<".DATA\n";
+    for(int i=0;i<m_ExpressionMatrix.size();i++)
     {
-        m_outputFile<<"DWORD\t"<<it->first<<"\n";
-        it++;
+        if(m_ExpressionMatrix[i][m_ExpressionMatrix[i].size()-1]=="var")
+        {
+            WriteVarInDataSegment(m_ExpressionMatrix[i]);
+        }
     }
-
 }
 std::string CodeGeneration::makeMathExpresion(std::string str,const int index)
 {
@@ -120,12 +121,29 @@ std::string CodeGeneration::makeMathExpresion(std::string str,const int index)
  }
 void CodeGeneration::addVariable(const std::string &varName,const std::string &varValue)
 {
-    VarRegWrap obj(makeMemoryAddress(),varValue);
-    MemoryAddress.insert(MemoryAddress.begin(),pair_type(varName,obj));
+    VarRegWrap obj(m_mem.makeMemoryAddress(),varValue);
+    m_mem.MemoryAddress.insert(pair_type(varName,obj));
 }
-std::string CodeGeneration::getVarValue(const std::string &varName)
+VarRegWrap CodeGeneration::getVarValue(const std::string &varName)
 {
-    return MemoryAddress[varName].sm_VarValue;
+    std::map<std::string,VarRegWrap>::iterator itInmap=m_mem.MemoryAddress.find(varName);
+    if(itInmap==m_mem.MemoryAddress.end())
+    {
+        std::cout<<"ERROR: \n You cannot use undeclared variable \n";
+        std::terminate();
+    }
+    else 
+    {   
+        if(itInmap->second.sm_VarValue=="00")
+        {
+            std::cout<<"ERROR: \n You cannot use uninitialized variable \n";
+             std::terminate();
+        }
+        else
+        {
+            return VarRegWrap(itInmap->second);
+        }
+    }
 }
 std::string CodeGeneration::makeFunctionName(std::string const &s_str)
 {
@@ -138,13 +156,210 @@ std::string CodeGeneration::makeFunctionName(std::string const &s_str)
     }
     return s_funcName;
 }
-std::string CodeGeneration::makeMemoryAddress()
+
+std::string CodeGeneration::getNumberFromPostExpr(std::string,int &index)
 {
-    static int count=0;
+    std::string s_number="";
     
-    std::stringstream out;
-    out << int(count/2);
-    count++;
-    return ("A"+out.str());
+    return s_number;
 }
- 
+void CodeGeneration::WriteVarInDataSegment(std::vector<std::string>  const &vec)
+{
+    if(vec.size()==2)
+    {
+        m_outputFile<<"DWORD\t"<<vec[0]<<"\n";
+    }
+    else
+    {
+        std::vector<std::string>::const_iterator it= vec.begin();
+        while(it!=(vec.end()-3))
+        {
+            m_outputFile<<"DWORD\t"<<*it<<"\n";
+            it++;
+        }
+    }
+}
+void CodeGeneration::CodeSegment()
+{
+    long FilePointerPosition=m_outputFile.tellg();
+
+    m_outputFile<<". CODE "<<"\n";
+
+    for(int i=0;i<m_ExpressionMatrix.size()-1;i++)
+    {
+        for(int j=0;j<m_ExpressionMatrix[i].size()-1;j++)
+        {
+            if(m_ExpressionMatrix[i][m_ExpressionMatrix[i].size()-1]=="func") // check Function or not
+            {
+                m_outputFile.seekg(std::ios::beg,m_outputFile.end);
+
+                m_outputFile<<MakeFuncLabel(m_ExpressionMatrix[i][0])<<" : \n";
+                
+                addVariable(m_ExpressionMatrix[i][0],MakeFunctionCode(m_ExpressionMatrix[i][1]));
+
+                m_outputFile.seekg(FilePointerPosition);
+                break;
+            }
+            else
+            {
+                if(m_ExpressionMatrix[i].size()==2)
+                {
+                    m_outputFile<<"ASSIGN"<<"\t"<<m_mem.makeMemoryAddress()<<"\t"<<m_ExpressionMatrix[i][0]<<"\n";
+                    addVariable(m_ExpressionMatrix[i][0],"00");
+                }
+                else
+                {
+                    VariableInit(m_ExpressionMatrix[i]);
+                }
+            }
+        }
+    }
+    m_mem.printM();
+}
+std::string CodeGeneration::MakeFuncLabel(std::string const &str)
+{
+    std::string ret_str="";
+    for(int i=0;i<str.size()-2;i++)
+    {
+        ret_str+=str[i];
+    }
+    return ret_str;
+}
+void CodeGeneration::VariableInit(std::vector<std::string> &vec)
+{
+    std::string result="";
+    std::string memAddress=""; 
+    while(vec.size()!=2)
+    {
+      std::cout<<"Armen"<<"\n";
+        
+        memAddress=m_mem.makeMemoryAddress();
+        static std::map<std::string,VarRegWrap>::iterator itToArdesses;
+        itToArdesses= m_mem.MemoryAddress.find(*(vec.end()-3));
+
+        if(itToArdesses==m_mem.MemoryAddress.end())
+        {
+            std::cout<<"Armen"<<"\n";
+            
+            std::cout<<"result!!"<<"\n";
+            m_outputFile<<"ASSIGN \t"<<memAddress<<"\t"<<*(vec.end()-3)<<"\n";
+            result=SolveMathExpression(*(vec.end()-2));
+            m_outputFile<<"STORE\t"<<memAddress<<"\t"<<m_mem.m_emptyRegStack.top()<<"\n";
+            m_mem.m_reserveRegStack.push(m_mem.m_emptyRegStack.top());
+            m_mem.m_emptyRegStack.pop();
+            addVariable(*(vec.end()-3),result);
+            *(vec.end()-3)=result;
+            vec.erase(vec.end()-2);
+            VariableInit(vec);
+        }
+        else
+        {
+            result=SolveMathExpression(*(vec.end()-2));
+            m_outputFile<<"STORE\t"<<itToArdesses->second.sm_VarAdress<<"\t"<<m_mem.m_emptyRegStack.top()<<"\n";
+            m_mem.m_reserveRegStack.push(m_mem.m_emptyRegStack.top());
+            m_mem.m_emptyRegStack.pop();
+            itToArdesses->second.sm_VarValue=result;
+            *(vec.end()-3)=result;
+            vec.erase(vec.end()-2);
+            VariableInit(vec);
+        }
+    }
+}
+std::string CodeGeneration::SolveMathExpression(std::string const & str)
+{
+    std::cout<<"vhgv"<<str<<"\n";
+    PostfixCalculator makePost;
+    makePost.setExpression(str);
+    std::vector<std::string > s_vec = makeMAthExpressionToVector(makePost.getPostfixNotation()); 
+
+    
+
+    for(int i=0;i<s_vec.size();i++)
+    {
+        if(int(s_vec[i][0])<=int('9') && int(s_vec[i][0])>=int('0'))
+        {
+            m_outputFile<<m_mem.regAssign(std::string(s_vec[i]))<<"\n";
+        }
+        else
+        {
+            if((int(s_vec[i][0])<=int('Z') && int(s_vec[i][0])>=int('A')) || (int(s_vec[i][0])<=int('z') && int(s_vec[i][0])>=int('a')))
+            {
+                if(LexicalAnalayser::IsFunc(s_vec[i]))
+                {
+                    m_outputFile<<"CALL\t"<<MakeFuncLabel(s_vec[i]);
+                    m_outputFile<<"LOAD\t"<<m_mem.m_reserveRegStack.top()<<"\t"<<getVarValue(s_vec[i]).sm_VarAdress<<"\n";
+                    m_mem.m_emptyRegStack.push(m_mem.m_reserveRegStack.top());
+                    m_mem.m_reserveRegStack.pop();
+                }
+                else
+                {
+                    m_outputFile<<"LOAD\t"<<m_mem.m_reserveRegStack.top()<<"\t"<<getVarValue(s_vec[i]).sm_VarAdress<<"\n";
+                    m_mem.m_emptyRegStack.push(m_mem.m_reserveRegStack.top());
+                    m_mem.m_reserveRegStack.pop();
+                }
+                
+            }
+            else
+            {
+                m_outputFile<<m_mem.regOperationCode(s_vec[i][0])<<"\n";
+                std::cout<<"operation"<<std::endl;
+            }
+        }
+    }
+    makePost.setExpression(changeVariableTovalue(str));
+
+    std::stringstream out;
+    out << int(makePost.getResult());
+    
+    return out.str();
+}
+std::string CodeGeneration::MakeFunctionCode(std::string const &str)
+{
+    std::string ret_str = SolveMathExpression(str);
+    m_outputFile<<"RET"<<"\n";
+    m_mem.clearStack();
+    return ret_str;
+}
+
+
+std::vector<std::string > CodeGeneration::makeMAthExpressionToVector(std::string const &str)
+{
+    std::vector<std::string> vec;
+    std::string s_temp;
+    for(int i=0;i<str.size();i++)
+    {
+        s_temp="";
+        while(str[i]!=' ' && i<str.size())
+        {
+            s_temp+=str[i];
+            i++;
+        }
+        vec.push_back(s_temp);
+    }
+    return vec;
+}
+
+std::string  CodeGeneration::changeVariableTovalue(std::string const &str)
+{
+    std::string  ret_str="";
+    std::string temp="";
+    for(int i=0;i<str.size();i++)
+    {
+        
+        if((int(str[i])>=int('A') && int(str[i])<=int('Z')) || (int(str[i])>=int('a') && int(str[i])<=int('z')))
+        {
+            while(str[i]!='+')
+            {
+                temp+=str[i];
+                i++;
+            }
+            ret_str+=getVarValue(temp).sm_VarValue;
+        }
+        else
+        {
+            ret_str+=str[i];
+        }
+    }
+    return ret_str;
+}
+

@@ -59,7 +59,7 @@ bool PostfixCalculator::bracketValidator() const
 
 bool PostfixCalculator::isOperand(const char &ch) const
 {
-   return ((ch >= '0') && (ch <= '9'));
+   return (((ch >= '0') && (ch <= '9'))  || ((ch >= 'A') && (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z') ) || ((ch == '(') && (ch == ')') ));
 }
 
 bool PostfixCalculator::isOperator(const char &ch) const

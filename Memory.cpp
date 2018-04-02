@@ -15,7 +15,7 @@ Memory::Memory()
  {
      return "fv";
  }
- std::string Memory::regAssign(std::string value)
+ std::string Memory::regAssign(std::string const &value)
  {
      std::string str="ASSIGN\t";
      str+=m_reserveRegStack.top();
@@ -26,7 +26,7 @@ Memory::Memory()
 
      return str;
  }
- std::string Memory::regOperationCode(char oper)
+ std::string Memory::regOperationCode(char const &oper)
  {
      std::string str;
      switch(oper)
@@ -68,4 +68,32 @@ Memory::Memory()
      m_reserveRegStack.push(r4);
      return str;
      
+}
+
+void Memory::clearStack()
+{
+    while(!m_emptyRegStack.empty())
+    {
+        m_reserveRegStack.push(m_emptyRegStack.top());
+        m_emptyRegStack.pop();
+    }
+}
+std::string Memory::makeMemoryAddress()
+{
+    static int count=0;
+    
+    std::stringstream out;
+    out << int(count/2);
+    count++;
+    return ("A"+out.str());
+}
+
+ void Memory::printM()
+{
+    std::map<std::string,VarRegWrap>::iterator it=MemoryAddress.begin();
+    while(it!=MemoryAddress.end())
+    {
+        std::cout<<it->first<<" ,"<<it->second.sm_VarAdress<<" ,"<<it->second.sm_VarValue<<",\n";
+        it++;
+    }
 }

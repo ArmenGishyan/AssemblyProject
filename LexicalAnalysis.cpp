@@ -1,34 +1,77 @@
 #include "LexicalAnalysis.h"
 
-LexicalAnalayser::LexicalAnalayser()
-{
-    m_FileName="";
-    m_KeyWords.push_back("R1");
-    m_KeyWords.push_back("R4");
-}
 void LexicalAnalayser::GetFile()
 {
-    std::cout<<"Write File Name:\n";
-    getline(std::cin,m_FileName);
-}
-std::vector < std::vector<std::string> > LexicalAnalayser::MakeStrMartix()
-{
-    std::vector< std::vector<std::string> > vec_Matrix;
-    std::fstream inputFile;
-    inputFile.open(m_FileName.c_str(),std::ios::in);
-    assert(inputFile.is_open() && "File is Not open");
-
-    std::string temp_str="";
-    
-    while(!inputFile.eof())
+    std::string FileName="inputFile.txt";
+    int tryFlag=true;
+   /* do
     {
-        getline(inputFile,temp_str);
-        vec_Matrix.push_back(Split(temp_str));
-        
+        if(tryFlag)
+        {
+            std::cout<<"Write File Name:\n";
+            getline(std::cin,FileName);
+            tryFlag=false;
+        }
+        else
+        {
+            std::cout<<"ERROR! \n The filename is incorrect: Try again!\n";
+            getline(std::cin,FileName);
+        }
+        m_inputFile.open(FileName.c_str(),std::ios::in);
+    }
+    while(!m_inputFile.is_open());*/
+    m_inputFile.open(FileName.c_str(),std::ios::in);
+}
+
+bool LexicalAnalayser::isNumber(std::string const &s_obj) const
+{
+    for(int i=0;i<s_obj.size();i++)
+    {
+        if(int(s_obj[i])<=int('9') || int(s_obj[i])>=int('9') )
+        return false;
+    }
+    return true;
+}
+
+int LexicalAnalayser::MakeExpression(const int &Lineindex)
+{
+    char character;
+    m_inputFile>>character;
+    std::string VaribleORExpr="";
+
+    while(character!='=' && character!=';' && !m_inputFile.eof())
+    {
+        VaribleORExpr+=character;
+        m_inputFile>>character;
     }
 
-    m_StrMartix=vec_Matrix;
-    return vec_Matrix;
+    m_StrMartix[Lineindex].push_back(VaribleORExpr);
+
+    if(character==';' || m_inputFile.eof()) return 0;
+
+    MakeExpression(Lineindex);
+    return 0;
+}
+
+void LexicalAnalayser::MakeExpressioncMatrix()
+{
+   int Lineindex=-1;
+   while(!m_inputFile.eof())
+   {
+       Lineindex++;
+       m_StrMartix.push_back(std::vector<std::string>());
+       
+       MakeExpression(Lineindex);
+   }
+}
+ void LexicalAnalayser::print()
+{
+    for(int i=0;i<m_StrMartix.size();i++)
+    {
+        std::copy(m_StrMartix[i].begin(),m_StrMartix[i].end(),std::ostream_iterator<std::string>(std::cout,","));
+        std::cout<<"\n";
+    }
+    
 }
 std::vector<std::string > LexicalAnalayser::Split(std::string str)
 {
@@ -58,27 +101,118 @@ std::vector<std::string > LexicalAnalayser::Split(std::string str)
     }
     return VecForRetrun;
 }
-bool LexicalAnalayser::IsNumber(std::string const &s_obj)
+
+bool LexicalAnalayser::isKeyWord(const std::string &str) const 
 {
-    for(int i=0;i<s_obj.size();i++)
+    for(int i=0;i<m_KeyWords.size();++i)
     {
-        if(int(s_obj[i])<=int('9') || int(s_obj[i])>=int('9') )
+        std::cerr<<"ERROR:\n Using Keyword as Function or variable name!\n";
+    }
+    return true;
+}
+bool LexicalAnalayser::isVariable(const std::string &str) const 
+{
+    std::string errorMessage="ERROR: \n Invalid variable name <"+str+">";
+    for(int i=0;i<str.size();i++)
+    {
+        assert( ((int(str[i])>=int('A') && int(str[i])<=int('Z')) 
+        
+                || (int(str[i])>=int('a') && int(str[i])<=int('z'))) && errorMessage.c_str()
+               );
+    }
+    return true;
+}
+bool LexicalAnalayser::isMathExpression(const std::string &str) const
+{
+    return true;
+}
+void LexicalAnalayser::addNewKeyword(const std::string &str)
+{
+    m_KeyWords.push_back(str);
+}
+void LexicalAnalayser::simpleSemiColonValid() const
+{
+    assert(!(--m_StrMartix.end())->empty() && "Missing semicolon in end of file ");
+}
+bool LexicalAnalayser::simpleValidation() const
+{
+    simpleSemiColonValid();
+
+   for(int i=0;i<m_StrMartix.size()-1;i++)
+   {
+       if(m_StrMartix[i].size()>1)
+       {
+           isMathExpression(m_StrMartix[i][m_StrMartix[i].size()-1]);
+       }
+   }
+   
+    for(int i=0;i<m_StrMartix.size()-1;i++)
+    {
+        for(int j=1;j<m_StrMartix[i].size();j++)
+        {
+            isVariable(m_StrMartix[i][j-1]);
+        }
+    }
+
+    
+    return true;
+}
+
+bool LexicalAnalayser::isValidSymbol(const char &ch)
+{
+    return true;
+}
+void LexicalAnalayser::VariableOrFunc()
+{
+    for(int i=0;i<m_StrMartix.size()-1;i++)
+    {
+        if(IsFunc(m_StrMartix[i][0]))
+        {
+            m_StrMartix[i].push_back("func");
+        }
+        else
+        {
+            m_StrMartix[i].push_back("var");
+        }
+    }
+}
+
+bool LexicalAnalayser::IsFunc(std::string const &str)
+{
+    int i=str.size()-1;
+    if(str[i]==')')
+    {
+        --i;
+        while(str[i]!='(')
+        {
+            --i;
+            if(i==0) return false;
+        }
+        return true;
+    }
+    else
+    {
         return false;
     }
-    return true;
 }
-
-bool LexicalAnalayser::SemicolonValidation()
+std::vector<std::vector<std::string> > LexicalAnalayser::PassMatrixToCodeGen()
 {
-    for(int i=0;i<m_StrMartix.size();i++)
+    if(true)//simpleValidation())
     {
-        if(m_StrMartix[i][m_StrMartix[i].size()-1]!=";")
-            return false;
+        VariableOrFunc();
+        for(int i=0;i<m_StrMartix.size();i++)
+        {
+            std::cout<<std::endl;
+            for(int j=0;j<m_StrMartix[i].size();j++)
+            {
+                std::cout<<m_StrMartix[i][j];
+            }
+        }
+        return m_StrMartix;
     }
-    return true;
-}
-
-bool LexicalAnalayser::LeftValueValidation()
-{
-    
+    else
+    {
+        std::cerr<<"ERROR\n : You have a mistakes plesae to correct it \n";
+        std::terminate();
+    }
 }

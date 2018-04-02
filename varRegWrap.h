@@ -1,3 +1,6 @@
+#ifndef VARREGWRAP_H
+#define VARREGWRAP_H
+
 #include <string>
 
 class VarRegWrap
@@ -21,3 +24,5 @@ class VarRegWrap
     }
 
 };
+
+#endif
