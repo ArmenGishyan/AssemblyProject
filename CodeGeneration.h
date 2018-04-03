@@ -5,12 +5,10 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#include <cassert>
 #include <iterator>
 #include <sstream>
 #include <vector>
 #include "postfixcalculator.h"
-#include "SemanticAnalysis.h"
 #include "Memory.h"
 #include <sstream>
 #include "varRegWrap.h"
@@ -29,12 +27,7 @@ class CodeGeneration
 
         void addVariable(const std::string &varName,const std::string &varValue);
         VarRegWrap getVarValue(const std::string &varName);
-        std::string getNumberFromPostExpr(std::string,int &index);
-        
-        
        
-        bool CodeIsFunc(std::string const &str);
-        bool CodeIsVariable(std::string const &str);
         std::string MakeFunctionCode(std::string const &str);
 
         std::string MakeFuncLabel(std::string const &str);
@@ -45,16 +38,13 @@ class CodeGeneration
     public:
         void CodeSegment();
         void DataSegment();
+        static void DividedInZeroValidation(const std::string &str);
 
         std::string  changeVariableTovalue(std::string const &str);
         
         std::fstream m_outputFile;
-        PostfixCalculator m_C_object;
         CodeGeneration(std::vector<std::vector<std::string> > const &Matrix, std::string s_OutfileName="assemblyOutput.txt");
         ~CodeGeneration(); 
-
-        //kardum a filic stugum a funkcia a te math artahaytutyun berum  a postfixi  
-        void ReadFromFile();
 };
 
 

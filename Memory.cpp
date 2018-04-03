@@ -11,10 +11,7 @@ Memory::Memory()
     m_reserveRegStack.push("R0");
 }
 
- std::string getVarValue(const std::string &varName)
- {
-     return "fv";
- }
+ 
  std::string Memory::regAssign(std::string const &value)
  {
      std::string str="ASSIGN\t";
@@ -88,12 +85,3 @@ std::string Memory::makeMemoryAddress()
     return ("A"+out.str());
 }
 
- void Memory::printM()
-{
-    std::map<std::string,VarRegWrap>::iterator it=MemoryAddress.begin();
-    while(it!=MemoryAddress.end())
-    {
-        std::cout<<it->first<<" ,"<<it->second.sm_VarAdress<<" ,"<<it->second.sm_VarValue<<",\n";
-        it++;
-    }
-}
